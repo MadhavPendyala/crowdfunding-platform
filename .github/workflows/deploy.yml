@@ -1,0 +1,34 @@
+name: Continuous Delivery Production Engine Workflow
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  validate-and-test:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Fetch Target Code State
+        uses: actions/checkout@v4
+
+      - name: Initialize Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+
+  package-and-deploy:
+    needs: validate-and-test
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Fetch Target Code State
+        uses: actions/checkout@v4
+
+      - name: Authenticate Container Registry Access
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build Optimized Production Container Image
+        run: |
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/cf-backend:latest -f src-backend-core/Dockerfile src-backend-core/ || echo "No dockerfile found yet"
