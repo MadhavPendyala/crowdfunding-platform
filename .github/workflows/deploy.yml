@@ -31,4 +31,23 @@ jobs:
 
       - name: Build Optimized Production Container Image
         run: |
-          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/cf-backend:latest -f src-backend-core/Dockerfile src-backend-core/ || echo "No dockerfile found yet"
+          docker build -t ${{ secrets.DOCKER_HUB_USERNAME }}/cf-backend:latest -f src-backend-core/Dockerfile src-backend-core/
+
+      - name: Push Verified Image to Docker Hub Registry
+        run: |
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/cf-backend:latest
+
+      - name: Remote Execute Rollout on Cloud VM Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            sudo apt-get update -y
+            sudo apt-get install -y docker.io
+            sudo systemctl start docker
+            sudo docker stop cf-backend || true
+            sudo docker rm cf-backend || true
+            sudo docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/cf-backend:latest
+            sudo docker run -d --name cf-backend --restart always -p 80:5000 ${{ secrets.DOCKER_HUB_USERNAME }}/cf-backend:latest
